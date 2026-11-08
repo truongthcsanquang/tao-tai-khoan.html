@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tạo tài khoản hàng loạt – THCS An Quang</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--ink:#2b3445;--mut:#6b7686;--line:#e8e6f0;--red:#c9455f;--ok:#3f8f6b;--yelbg:#fff6dc;--yel:#fbe3a1}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fdfbfe}
+header{background:linear-gradient(100deg,#fbd5dc,#fde7c8 55%,#d9ecfb);border-bottom:4px solid var(--yel);padding:16px 20px}
+header h1{margin:0;font-size:23px}header p{margin:2px 0 0;font-size:14.5px;opacity:.85}
+main{max-width:760px;margin:0 auto;padding:18px 16px 60px}
+.card{background:#fff;border:1px solid var(--line);border-top:4px solid #a9c8f5;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(110,90,150,.10);margin-bottom:16px}
+h2{font-size:20px;margin:0 0 10px}
+label{display:block;font-size:15px;font-weight:500;color:var(--mut);margin:12px 0 6px}
+input[type=text],input[type=email],input[type=password],textarea{font:inherit;width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;color:var(--ink);background:#fff}
+textarea{min-height:200px;font-family:ui-monospace,Consolas,monospace;font-size:16px}
+input:focus,textarea:focus{outline:none;border-color:#f08aa0;box-shadow:0 0 0 3px rgba(244,169,184,.35)}
+.ck,.rd{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:16.5px;font-weight:400;margin:10px 0;cursor:pointer}
+.ck input,.rd input{width:22px;height:22px;accent-color:#e9798f;flex:none;margin:0}
+button{font:inherit;font-weight:600;border:0;border-radius:14px;padding:13px 20px;cursor:pointer;background:linear-gradient(135deg,#f9bccb,#f29db3);color:#3a1f27;box-shadow:0 4px 12px rgba(242,157,179,.45)}
+button.g{background:#fff;border:1px solid var(--line);box-shadow:none;font-weight:500;color:var(--ink)}
+button:disabled{opacity:.5}
+.note{background:var(--yelbg);border-left:4px solid var(--yel);border-radius:12px;padding:12px 14px;font-size:15.5px;margin:0 0 14px}
+.err{color:var(--red);min-height:24px;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:16px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{background:var(--yelbg);font-size:14.5px}td.pw{font-family:ui-monospace,Consolas,monospace;font-weight:600}
+.ok{color:var(--ok)}.bad{color:var(--red)}
+.tw{overflow-x:auto}.bar{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+@media print{header,.noprint{display:none!important}body{background:#fff}.card{box-shadow:none;border:0}}
+</style>
+</head>
+<body>
+<header><h1>Tạo tài khoản hàng loạt</h1><p>Sổ thi đua tuần · THCS An Quang · chỉ dành cho quản trị viên</p></header>
+<main id="v"><div class="card">Đang tải…</div></main>
+<script>
+/* ===== Giữ giống index.html ===== */
+var FB_CFG={apiKey:'AIzaSyAsRW6ZI_MMajA5-aXYdB6iGrzqA259-5A',authDomain:'sotructhidua.firebaseapp.com',projectId:'sotructhidua',storageBucket:'sotructhidua.firebasestorage.app',messagingSenderId:'977047451977',appId:'1:977047451977:web:d86f35ae53a8a071484298'};
+var ADMIN_EMAIL='admin@anquang.vn',EMAIL_DOMAIN='anquang.vn';
+var CL=['6.1','6.2','6.3','6.4','7.1','7.2','7.3','7.4','8.1','8.2','8.3','8.4','9.1','9.2','9.3','9.4'];
+var auth,fs,SEC=null,ROWS=[];
+function $(i){return document.getElementById(i)}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function V(h){$('v').innerHTML=h}
+function showLogin(m){V('<div class="card" style="max-width:440px;margin:20px auto"><h2>Đăng nhập quản trị viên</h2><label for="lu">Email quản trị viên</label><input id="lu" type="email" autocapitalize="none" autocomplete="username" placeholder="'+esc(ADMIN_EMAIL)+'"><label for="lp">Mật khẩu</label><input id="lp" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')doLogin()"><label class="ck" for="sp"><input id="sp" type="checkbox" onchange="$(\'lp\').type=this.checked?\'text\':\'password\'"> Hiện mật khẩu</label><div id="le" class="err">'+(m||'')+'</div><button style="width:100%" onclick="doLogin()">Đăng nhập</button></div>')}
+function doLogin(){var u=$('lu').value.trim().toLowerCase(),p=$('lp').value;if(!u||!p){$('le').textContent='Hãy nhập email và mật khẩu.';return}$('le').textContent='Đang đăng nhập…';auth.signInWithEmailAndPassword(u,p).catch(function(){$('le').textContent='Sai email hoặc mật khẩu.'})}
+function showDenied(u){V('<div class="card"><h2>Không đủ quyền</h2><p>Tài khoản <b>'+esc(u.email)+'</b> không phải quản trị viên. Chỉ tài khoản <b>'+esc(ADMIN_EMAIL)+'</b> dùng được trang này.</p><button class="g" onclick="auth.signOut()">Đăng xuất</button></div>')}
+function showTool(u){var def=CL.map(function(c){return'lop'+c}).concat(['tpt','gv']).join('\n');
+V('<div class="card"><h2>Bước 1. Bật tạm tính năng tạo tài khoản</h2><div class="note">Firebase Console, Authentication, Settings, mục User actions: tick <b>Enable create (sign-up)</b>. Làm xong trang này nhớ <b>bỏ tick lại</b>.</div><h2>Bước 2. Danh sách tài khoản</h2><label for="list">Mỗi dòng một tài khoản. Gõ ngắn như <b>lop6.1</b> thì tự thêm @'+esc(EMAIL_DOMAIN)+'</label><textarea id="list" spellcheck="false">'+def+'</textarea><label>Mật khẩu</label><label class="rd" for="m1"><input type="radio" name="pm" id="m1" value="rand" checked> Tự sinh ngẫu nhiên 8 ký tự cho từng tài khoản</label><label class="rd" for="m2"><input type="radio" name="pm" id="m2" value="same"> Một mật khẩu chung cho tất cả</label><input id="pc" type="text" placeholder="Mật khẩu chung (ít nhất 6 ký tự)" style="display:none"><label class="ck" for="as"><input id="as" type="checkbox" checked> Gán vai trò luôn (lopX.Y thành lớp, tpt thành Tổng phụ trách, gv thành Giáo viên)</label><div id="er" class="err"></div><button id="go" style="width:100%" onclick="runAll()">Tạo tất cả tài khoản</button><p style="text-align:center;margin:12px 0 0"><a href="#" onclick="auth.signOut();return false" class="noprint" style="color:var(--mut)">Đăng xuất ('+esc(u.email)+')</a></p></div><div id="res"></div>');
+document.getElementsByName('pm').forEach(function(r){r.onchange=function(){$('pc').style.display=$('m2').checked?'':'none'}})}
+function genPw(){var cs='abcdefghjkmnpqrstuvwxyz23456789',a=new Uint32Array(8),o='';crypto.getRandomValues(a);for(var i=0;i<8;i++)o+=cs[a[i]%cs.length];return o}
+function roleOf(em){var n=em.split('@')[0],m=/^lop(\d\.\d)$/.exec(n);if(m)return{doc:{cls:m[1]},lb:'Lớp '+m[1]};if(n=='tpt')return{doc:{role:'tpt'},lb:'Tổng phụ trách'};if(n=='gv')return{doc:{role:'gv'},lb:'Giáo viên'};return null}
+async function runAll(){var er=$('er');er.textContent='';var seen={},L=[];$('list').value.split(/\r?\n/).forEach(function(t){t=t.trim().toLowerCase();if(!t)return;if(t.indexOf('@')<0)t+='@'+EMAIL_DOMAIN;if(!seen[t]){seen[t]=1;L.push(t)}});
+if(!L.length){er.textContent='Danh sách đang trống.';return}
+var same=$('m2').checked,pc=$('pc').value;if(same&&pc.length<6){er.textContent='Mật khẩu chung cần ít nhất 6 ký tự.';return}
+if(!confirm('Tạo '+L.length+' tài khoản?'))return;
+var go=$('go');go.disabled=true;ROWS=[];if(!SEC)SEC=firebase.initializeApp(FB_CFG,'sec');var sa=SEC.auth(),stop=false;
+for(var i=0;i<L.length&&!stop;i++){var em=L[i],pw=same?pc:genPw(),st='',cls='ok',rl=roleOf(em);go.textContent='Đang tạo '+(i+1)+'/'+L.length+'…';
+try{await sa.createUserWithEmailAndPassword(em,pw);await sa.signOut();st='Đã tạo'}catch(e){var c=(e&&e.code)||'';if(c=='auth/email-already-in-use'){st='Đã có sẵn, giữ mật khẩu cũ';pw='(giữ nguyên)'}else if(c=='auth/admin-restricted-operation'||c=='auth/operation-not-allowed'){st='Chưa bật tạo tài khoản ở Bước 1';cls='bad';stop=true;pw=''}else if(c=='auth/invalid-email'){st='Email không hợp lệ';cls='bad';pw=''}else{st='Lỗi '+c;cls='bad';pw=''}}
+if(!stop&&cls=='ok'&&rl&&$('as').checked){try{await fs.doc('acct/'+em).set(rl.doc);st+=', đã gán vai trò'}catch(e){st+=', gán vai trò lỗi';cls='bad'}}
+ROWS.push({em:em,pw:pw,lb:rl?rl.lb:'',st:st,cls:cls})}
+go.disabled=false;go.textContent='Tạo tất cả tài khoản';showRes(stop)}
+function showRes(stop){var ok=ROWS.filter(function(r){return r.cls=='ok'}).length;V2('<div class="card"><h2>Kết quả: '+ok+'/'+ROWS.length+' thành công</h2>'+(stop?'<div class="note">Chưa tạo được vì tính năng sign-up đang tắt. Hãy làm Bước 1 rồi bấm Tạo lại.</div>':'<div class="note noprint">Mật khẩu chỉ hiện ở đây một lần. Hãy <b>tải file hoặc in</b> để phát cho từng lớp, sau đó vào Console <b>bỏ tick Enable create (sign-up)</b>. Các lớp nên đổi mật khẩu ngay lần đăng nhập đầu.</div>')+'<div class="tw"><table><tr><th>Tên đăng nhập</th><th>Mật khẩu</th><th>Vai trò</th><th>Kết quả</th></tr>'+ROWS.map(function(r){return'<tr><td>'+esc(r.em.split('@')[0])+'</td><td class="pw">'+esc(r.pw)+'</td><td>'+esc(r.lb)+'</td><td class="'+r.cls+'">'+esc(r.st)+'</td></tr>'}).join('')+'</table></div><div class="bar noprint"><button class="g" onclick="cpRes()">Sao chép</button><button class="g" onclick="csvRes()">Tải file CSV</button><button class="g" onclick="window.print()">In</button></div></div>')}
+function V2(h){$('res').innerHTML=h;$('res').scrollIntoView({behavior:'smooth'})}
+function cpRes(){var t='Tên đăng nhập\tMật khẩu\tVai trò\n'+ROWS.map(function(r){return[r.em.split('@')[0],r.pw,r.lb].join('\t')}).join('\n');try{navigator.clipboard.writeText(t).then(function(){alert('Đã sao chép. Dán vào Excel hoặc Word.')})}catch(e){alert('Trình duyệt không cho sao chép, hãy dùng nút Tải file CSV.')}}
+function csvRes(){var t='\ufeffTen dang nhap,Mat khau,Vai tro\r\n'+ROWS.map(function(r){return[r.em.split('@')[0],r.pw,r.lb].map(function(x){return'"'+String(x).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='tai-khoan-thi-dua.csv';document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a)},500)}
+try{firebase.initializeApp(FB_CFG);auth=firebase.auth();fs=firebase.firestore();try{fs.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
+auth.onAuthStateChanged(function(u){if(!u)showLogin();else if(String(u.email||'').toLowerCase()==ADMIN_EMAIL.toLowerCase())showTool(u);else showDenied(u)})}catch(e){V('<div class="card">Không tải được Firebase. Kiểm tra kết nối mạng rồi tải lại trang.</div>')}
+</script>
+</body>
+</html>
